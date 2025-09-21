@@ -85,7 +85,7 @@ pub fn batch_generate_renovate_settings(
 ) -> Result<()> {
     let dirs = read_git_dirs(repo_root, git_command)?;
     for dir in dirs {
-        debug!("batch_generate_renovate_settings: {}", dir.display());
+        info!("batch_generate_renovate_settings: {}", dir.display());
         match default_renovate_id(&dir) {
             Err(err) => {
                 if fail_fast {
@@ -130,7 +130,7 @@ pub fn batch_get_lock(
     }
     let dirs = read_git_dirs(repo_root, git_command)?;
     for dir in dirs {
-        debug!("batch_get_lock: {}", dir.display());
+        info!("batch_get_lock: {}", dir.display());
         match default_renovate_id(&dir) {
             Err(err) => {
                 if fail_fast {
