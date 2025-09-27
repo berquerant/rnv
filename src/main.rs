@@ -66,6 +66,9 @@ enum Commands {
         /// Read renovatable line from the file instead of stdin.
         #[arg(short = 'l', long = "lock")]
         lock_file: Option<PathBuf>,
+        /// Checkout to the commit.
+        #[arg(short = 'c', long = "checkout")]
+        checkout: bool,
     },
     /// Batch operations.
     #[command(about, verbatim_doc_comment)]
@@ -96,6 +99,9 @@ enum BatchCommands {
         /// Read renovatable lines from the file instead of stdin.
         #[arg(short = 'l', long = "lock")]
         lock_file: Option<PathBuf>,
+        /// Checkout to the commit.
+        #[arg(short = 'c', long = "checkout")]
+        checkout: bool,
     },
 }
 
@@ -114,19 +120,30 @@ fn main() -> Result<()> {
             let renovate_id = id.unwrap_or(default_id);
             cmd::generate_renovate_setting(git, &renovate_id, commit)
         }
-        Commands::Lock { id, lock_file } => {
+        Commands::Lock {
+            id,
+            lock_file,
+            checkout,
+        } => {
             let default_id = cmd::default_renovate_id(&args.repo)?;
             let git = Git::new(&args.repo, &args.git);
             let renovate_id = id.unwrap_or(default_id);
-            cmd::get_lock(git, &renovate_id, lock_file)
+            cmd::get_lock(git, &renovate_id, lock_file, checkout)
         }
         Commands::Batch(batch_args) => match batch_args.command {
             BatchCommands::Gen => {
                 cmd::batch_generate_renovate_settings(&args.repo, &args.git, batch_args.fail_fast)
             }
-            BatchCommands::Lock { lock_file } => {
-                cmd::batch_get_lock(&args.repo, &args.git, lock_file, batch_args.fail_fast)
-            }
+            BatchCommands::Lock {
+                lock_file,
+                checkout,
+            } => cmd::batch_get_lock(
+                &args.repo,
+                &args.git,
+                lock_file,
+                batch_args.fail_fast,
+                checkout,
+            ),
         },
     }
 }

@@ -46,7 +46,12 @@ fn read_entries(lock_file: Option<PathBuf>) -> Result<Box<dyn Iterator<Item = Re
     Ok(Box::new(it))
 }
 
-pub fn get_lock(git: Git, renovate_id: &str, lock_file: Option<PathBuf>) -> Result<()> {
+pub fn get_lock(
+    git: Git,
+    renovate_id: &str,
+    lock_file: Option<PathBuf>,
+    checkout: bool,
+) -> Result<()> {
     ensure!(git.is_valid(), "repo is not a git repository");
     git.fetch()?;
     for entry in read_entries(lock_file)? {
@@ -58,6 +63,9 @@ pub fn get_lock(git: Git, renovate_id: &str, lock_file: Option<PathBuf>) -> Resu
                 .with_context(|| format!("cannot get commit from {}", tag))?;
             debug!("get_lock: {} => {}", entry, commit);
             println!("{}", commit);
+            if checkout {
+                git.checkout(&commit)?;
+            }
             return Ok(());
         }
     }
@@ -112,6 +120,7 @@ pub fn batch_get_lock(
     git_command: &str,
     lock_file: Option<PathBuf>,
     fail_fast: bool,
+    checkout: bool,
 ) -> Result<()> {
     let entries = read_entries(lock_file)?;
     let mut entry_map = HashMap::new();
@@ -176,6 +185,12 @@ pub fn batch_get_lock(
                             commit
                         );
                         println!("{} {}", renovate_id, commit);
+                        if checkout && let Err(err) = git.checkout(&commit) {
+                            if fail_fast {
+                                return Err(err);
+                            }
+                            error!("failed to checkout {} {}", dir.display(), err);
+                        }
                     }
                 }
             }

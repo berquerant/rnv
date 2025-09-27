@@ -56,6 +56,9 @@ impl Git<'_> {
     pub fn fetch(&self) -> Result<()> {
         self.cmd(["fetch"]).map(|_| ())
     }
+    pub fn checkout(self, commit: &str) -> Result<()> {
+        self.cmd(["reset", "--hard", commit]).map(|_| ())
+    }
     pub fn get_commit_from_tag(&self, tag: &str) -> Result<String> {
         self.cmd(["rev-parse", tag])
     }
