@@ -46,27 +46,32 @@ fn read_entries(lock_file: Option<PathBuf>) -> Result<Box<dyn Iterator<Item = Re
     Ok(Box::new(it))
 }
 
+fn lock<'a>(git: &Git<'a>, entry: &'a Entry, checkout: bool) -> Result<()> {
+    ensure!(git.is_valid(), "repo is not a git repository");
+    git.fetch()?;
+    let tag = entry.get_value();
+    let commit = git
+        .get_commit_from_tag(&tag)
+        .with_context(|| format!("cannot get commit from {}", tag))?;
+    debug!("lock: {} => {}", entry, commit);
+    println!("{}", commit);
+    if checkout {
+        git.checkout(&commit)
+            .with_context(|| format!("failed to checkout to {}", commit))?;
+    }
+    Ok(())
+}
+
 pub fn get_lock(
     git: Git,
     renovate_id: &str,
     lock_file: Option<PathBuf>,
     checkout: bool,
 ) -> Result<()> {
-    ensure!(git.is_valid(), "repo is not a git repository");
-    git.fetch()?;
     for entry in read_entries(lock_file)? {
         let entry = entry?;
         if entry.has_id(renovate_id) {
-            let tag = entry.get_value();
-            let commit = git
-                .get_commit_from_tag(&tag)
-                .with_context(|| format!("cannot get commit from {}", tag))?;
-            debug!("get_lock: {} => {}", entry, commit);
-            println!("{}", commit);
-            if checkout {
-                git.checkout(&commit)?;
-            }
-            return Ok(());
+            return lock(&git, &entry, checkout);
         }
     }
     bail!("cannot find renovate entry: {}", renovate_id);
@@ -153,48 +158,15 @@ pub fn batch_get_lock(
                     continue;
                 };
                 let git = Git::new(&dir, git_command);
-                if !git.is_valid() {
-                    let msg = format!("repo is not a git repository {}", dir.display());
-                    if fail_fast {
-                        bail!(msg);
-                    }
-                    warn!("{}", msg);
-                    continue;
-                }
-                if let Err(err) = git.fetch() {
+                if let Err(err) = lock(&git, entry, checkout) {
                     if fail_fast {
                         return Err(err);
                     }
-                    warn!("ignore {} {}", dir.display(), err);
-                    continue;
-                }
-                let tag = entry.get_value();
-                match git.get_commit_from_tag(&tag) {
-                    Err(err) => {
-                        if fail_fast {
-                            return Err(err);
-                        }
-                        warn!("ignore {} {}", dir.display(), err);
-                    }
-                    Ok(commit) => {
-                        debug!(
-                            "batch_get_lock: {} => {} => {} => {}",
-                            renovate_id,
-                            dir.display(),
-                            entry,
-                            commit
-                        );
-                        println!("{} {}", renovate_id, commit);
-                        if checkout && let Err(err) = git.checkout(&commit) {
-                            if fail_fast {
-                                return Err(err);
-                            }
-                            error!("failed to checkout {} {}", dir.display(), err);
-                        }
-                    }
+                    warn!("{} {}", dir.display(), err);
                 }
             }
         }
     }
+
     Ok(())
 }
