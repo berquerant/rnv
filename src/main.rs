@@ -49,7 +49,7 @@ enum Commands {
         #[arg(short = 'i', long = "id")]
         id: Option<String>,
         /// Override the original commit hash.
-        #[arg(short = 'c')]
+        #[arg(short = 'c', long = "commit")]
         commit: Option<String>,
     },
     /// Get the commit hash from the renovatable line.
