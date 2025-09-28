@@ -88,8 +88,21 @@ impl Git<'_> {
             "get_same_or_newer_or_latest_tag: current commit is not a tag {}",
             commit
         );
-        let latest_tag = self.get_latest_tag(commit)?;
         let tags = self.list_tags_order_by_creatordate_asc()?;
+        let Ok(latest_tag) = self.get_latest_tag(commit) else {
+            debug!(
+                "get_same_or_newer_or_latest_tag: cannot get latest tag from {}",
+                commit
+            );
+            let Some(t) = tags.last() else {
+                bail!("no tags are found");
+            };
+            debug!(
+                "get_same_or_newer_or_latest_tag: use remote latest tag {}",
+                t
+            );
+            return Ok(t.to_string());
+        };
         let Some(index) = tags.iter().position(|x| *x == latest_tag) else {
             bail!("latest_tag {} exists but not found in all tags", latest_tag);
         };
